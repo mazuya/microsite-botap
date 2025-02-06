@@ -1,9 +1,3 @@
-// This is your Prisma schema file,
-// learn more about it in the docs: https://pris.ly/d/prisma-schema
-
-// Looking for ways to speed up your queries, or scale easily with your serverless or edge functions?
-// Try Prisma Accelerate: https://pris.ly/cli/accelerate-init
-
 generator client {
   provider = "prisma-client-js"
 }
@@ -11,4 +5,128 @@ generator client {
 datasource db {
   provider = "postgresql"
   url      = env("DATABASE_URL")
+}
+
+model User {
+  userId                  String          @id @default(uuid())
+  fullname               String
+  phone                  String          @unique @db.VarChar(10)
+  birthdate             DateTime?        @db.Date
+  lineId                String          @unique
+  lineProfilePic        String?
+  createdAt             DateTime        @default(now()) @db.Timestamptz()
+  updatedAt             DateTime        @updatedAt @db.Timestamptz()
+  coupon                Int             @default(0)
+  isReceivePremiumCoupon Boolean        @default(false)
+  agentId               String?
+  collectCount          Int             @default(0)
+
+  addresses             Address[]
+  collectHistories      CollectHistory[]
+  redeems              Redeem[]
+  deliveries           Delivery[]
+}
+
+model Address {
+  addressId      Int       @id @default(autoincrement())
+  userId         String    
+  house_address  String?
+  postal_code    String?
+  district       String?
+  sub_district   String?
+  province       String?
+  isSelected     Boolean   @default(true)
+  createdAt      DateTime  @default(now()) @db.Timestamptz()
+  updatedAt      DateTime  @updatedAt @db.Timestamptz()
+
+  user           User      @relation(fields: [userId], references: [userId])
+  deliveries     Delivery[]
+}
+
+model Admin {
+  adminId        String    @id @default(uuid())
+  username       String    @unique
+  password       String
+  role           String
+  isEnable       Boolean   @default(true)
+  isMfa          Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @db.Timestamptz()
+  updatedAt      DateTime  @updatedAt @db.Timestamptz()
+}
+
+model Stock {
+  rewardId       Int       @id @default(autoincrement())
+  rewardName     String
+  rewardType     String
+  quantity       Int       @default(0)
+  remain         Int       @default(0)
+  gotRedeem      Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @db.Timestamptz()
+  updatedAt      DateTime  @updatedAt @db.Timestamptz()
+  isEnable       Boolean   @default(true)
+  qrcode         String    @unique
+  code           String    @unique
+  barcode        String    @unique
+
+  redeems        Redeem[]
+  deliveries     Delivery[]
+}
+
+model Product {
+  productId      String    @id @default(uuid())
+  code           String    @unique
+  gotUsed        Boolean   @default(false)
+  createdAt      DateTime  @default(now()) @db.Timestamptz()
+  updatedAt      DateTime  @updatedAt @db.Timestamptz()
+
+  collectHistories CollectHistory[]
+}
+
+model CollectHistory {
+  collectHisId   Int       @id @default(autoincrement())
+  collectType    CollectType
+  userId         String
+  agentId        String
+  productCode    String
+  groupNo        Int       @default(0)
+  userProvince   String?
+  uploadDate     DateTime  @db.Timestamptz()
+
+  user           User      @relation(fields: [userId], references: [userId])
+  product        Product   @relation(fields: [productCode], references: [code])
+}
+
+model Redeem {
+  redeemId       Int       @id @default(autoincrement())
+  userId         String
+  rewardId       Int
+  rewardName     String
+  redeemDate     DateTime  @db.Timestamptz()
+
+  user           User      @relation(fields: [userId], references: [userId])
+  stock          Stock     @relation(fields: [rewardId], references: [rewardId])
+  deliveries     Delivery[]
+}
+
+model Delivery {
+  deliverId      Int       @id @default(autoincrement())
+  trackingNo     String    @unique
+  addressId      Int
+  userId         String
+  redeemId       Int
+  rewardId       Int
+  rewardName     String
+  status         String
+  deliverDate    DateTime  @db.Timestamptz()
+  updatedAt      DateTime  @updatedAt @db.Timestamptz()
+
+  user           User      @relation(fields: [userId], references: [userId])
+  address        Address   @relation(fields: [addressId], references: [addressId])
+  redeem         Redeem    @relation(fields: [redeemId], references: [redeemId])
+  stock          Stock     @relation(fields: [rewardId], references: [rewardId])
+}
+
+enum CollectType {
+  register
+  group
 }
