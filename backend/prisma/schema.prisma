@@ -8,10 +8,10 @@ datasource db {
 }
 
 model User {
-  userId                  String          @id @default(uuid())
+  userId                  String          @id 
   fullname               String
   phone                  String          @unique @db.VarChar(10)
-  birthdate             DateTime?        @db.Date
+  birthdate             String        
   lineId                String          @unique
   lineProfilePic        String?
   createdAt             DateTime        @default(now()) @db.Timestamptz()
@@ -72,8 +72,8 @@ model Stock {
   deliveries     Delivery[]
 }
 
-model Product {
-  productId      String    @id @default(uuid())
+model Code {
+  codeId      String    @id @default(uuid())
   code           String    @unique
   gotUsed        Boolean   @default(false)
   createdAt      DateTime  @default(now()) @db.Timestamptz()
@@ -87,13 +87,13 @@ model CollectHistory {
   collectType    CollectType
   userId         String
   agentId        String
-  productCode    String
+  codeCode    String
   groupNo        Int       @default(0)
   userProvince   String?
   uploadDate     DateTime  @db.Timestamptz()
 
   user           User      @relation(fields: [userId], references: [userId])
-  product        Product   @relation(fields: [productCode], references: [code])
+  code        Code   @relation(fields: [codeCode], references: [code])
 }
 
 model Redeem {
