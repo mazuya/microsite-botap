@@ -28,7 +28,7 @@ model User {
 }
 
 model Address {
-  addressId      Int       @id @default(autoincrement())
+  addressId      String    @id @default(uuid())
   userId         String    
   house_address  String?
   postal_code    String?
@@ -55,7 +55,7 @@ model Admin {
 }
 
 model Stock {
-  rewardId       Int       @id @default(autoincrement())
+  rewardId       String    @id @default(uuid())
   rewardName     String
   rewardType     String
   quantity       Int       @default(0)
@@ -73,7 +73,7 @@ model Stock {
 }
 
 model Code {
-  codeId      String    @id @default(uuid())
+  codeId         String    @id @default(uuid())
   code           String    @unique
   gotUsed        Boolean   @default(false)
   createdAt      DateTime  @default(now()) @db.Timestamptz()
@@ -83,7 +83,7 @@ model Code {
 }
 
 model CollectHistory {
-  collectHisId   Int       @id @default(autoincrement())
+  collectHisId   String    @id @default(uuid())
   collectType    CollectType
   userId         String
   agentId        String
@@ -97,9 +97,9 @@ model CollectHistory {
 }
 
 model Redeem {
-  redeemId       Int       @id @default(autoincrement())
+  redeemId       String    @id @default(uuid())
   userId         String
-  rewardId       Int
+  rewardId       String
   rewardName     String
   redeemDate     DateTime  @db.Timestamptz()
 
@@ -109,12 +109,12 @@ model Redeem {
 }
 
 model Delivery {
-  deliverId      Int       @id @default(autoincrement())
+  deliverId      String    @id @default(uuid())
   trackingNo     String    @unique
-  addressId      Int
+  addressId      String
   userId         String
-  redeemId       Int
-  rewardId       Int
+  redeemId       String
+  rewardId       String
   rewardName     String
   status         String
   deliverDate    DateTime  @db.Timestamptz()

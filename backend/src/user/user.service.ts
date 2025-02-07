@@ -163,7 +163,8 @@ export class UserService{
           throw new NotFoundException('ไม่พบผู้ใช้ที่เข้าสู่ระบบด้วย Line ID นี้');
         }
     
-        const jwt = await this.authService.generateUserJwt(user);
+        // Generate JWT token
+        const access_token = await this.authService.generateUserJwt(user);
     
         // Update lineProfilePic if it has a different value
         if (lineProfilePic && user.lineProfilePic !== lineProfilePic) {
@@ -180,15 +181,183 @@ export class UserService{
     
           return {
             user: updatedUser,
-            jwt,
+            access_token,  // Changed from jwt to access_token for consistency
             message: 'เข้าสู่ระบบสำเร็จและข้อมูลรูปโปรไฟล์ของคุณได้รับการอัปเดต',
           };
         }
+        
         this.logger.log('user logged in with lineId', lineId, ':loginWithLineId');
         return {
-          ...user,
-          jwt,
+          user,  // Changed from spread operator to just returning user object
+          access_token,  // Changed from jwt to access_token
           message: 'เข้าสู่ระบบสำเร็จ',
         };
-      }
+    }
+
+    async getUserProfile(userId: string) {
+        try {
+            // Get user and their addresses in a single query using include
+            const userProfile = await this.prisma.user.findUnique({
+                where: { 
+                    userId: userId
+                },
+                include: {
+                    addresses: {
+                        orderBy: {
+                            createdAt: 'desc'
+                        }
+                    }
+                }
+            });
+    
+            if (!userProfile) {
+                this.logger.warn(
+                    'ไม่พบข้อมูลผู้ใช้',
+                    userId,
+                    ':getUserProfile'
+                );
+                throw new NotFoundException('ไม่พบข้อมูลผู้ใช้');
+            }
+    
+            this.logger.log(
+                `พบข้อมูลผู้ใช้ ${userProfile.fullname}`,
+                userId,
+                ':getUserProfile'
+            );
+    
+            return userProfile;
+    
+        } catch (error) {
+            this.logger.error(
+                'Failed to fetch user profile',
+                error.message,
+                ':getUserProfile'
+            );
+            throw new InternalServerErrorException('ไม่สามารถดึงข้อมูลผู้ใช้ได้');
+        }
+    }
+    
+    // Function to add new address
+    async addUserAddress(userId: string, addressData: Omit<AddressDto, 'userId'>) {
+        try {
+            // Find all existing addresses
+            const existingAddresses = await this.prisma.address.findMany({
+                where: { userId }
+            });
+    
+            // If this is the first address, set isSelected to true
+            // If not, set it to false
+            const isSelected = existingAddresses.length === 0;
+    
+            const newAddress = await this.prisma.address.create({
+                data: {
+                    userId,
+                    ...addressData,
+                    isSelected
+                }
+            });
+    
+            return newAddress;
+        } catch (error) {
+            this.logger.error(
+                'Failed to add user address',
+                error.message,
+                ':addUserAddress'
+            );
+            throw new InternalServerErrorException('ไม่สามารถเพิ่มที่อยู่ได้');
+        }
+    }
+    
+    // Function to update address
+    async updateAddress(userId: string, addressId: string, addressData: Partial<Omit<AddressDto, 'userId'>>) {
+        try {
+            // First check if address belongs to user
+            const existingAddress = await this.prisma.address.findFirst({
+                where: {
+                    AND: [
+                        { addressId: addressId }, // Now using string type
+                        { userId: userId }
+                    ]
+                }
+            });
+
+            if (!existingAddress) {
+                this.logger.error(
+                    'Address not found or does not belong to user',
+                    `userId: ${userId}, addressId: ${addressId}`,
+                    ':updateAddress'
+                );
+                throw new NotFoundException('ไม่พบข้อมูลที่อยู่');
+            }
+
+            const updatedAddress = await this.prisma.address.update({
+                where: { addressId }, // Now using string type
+                data: {
+                    ...addressData,
+                    updatedAt: new Date()
+                }
+            });
+
+            return updatedAddress;
+        } catch (error) {
+            this.logger.error(
+                'Failed to update address',
+                error.message,
+                ':updateAddress'
+            );
+            throw new InternalServerErrorException('ไม่สามารถอัพเดทที่อยู่ได้');
+        }
+    }
+
+    // Function to set primary address
+    async setPrimaryAddress(userId: string, addressId: string) { // Changed from number to string
+        try {
+            // First check if address belongs to user
+            const existingAddress = await this.prisma.address.findFirst({
+                where: {
+                    AND: [
+                        { addressId: addressId }, // Now using string type
+                        { userId: userId }
+                    ]
+                }
+            });
+
+            if (!existingAddress) {
+                this.logger.error(
+                    'Address not found or does not belong to user',
+                    `userId: ${userId}, addressId: ${addressId}`,
+                    ':setPrimaryAddress'
+                );
+                throw new NotFoundException('ไม่พบข้อมูลที่อยู่');
+            }
+
+            await this.prisma.$transaction([
+                // First, set all user's addresses to not selected
+                this.prisma.address.updateMany({
+                    where: { userId },
+                    data: { 
+                        isSelected: false,
+                        updatedAt: new Date()
+                    }
+                }),
+                // Then set the chosen address as selected
+                this.prisma.address.update({
+                    where: { addressId }, // Now using string type
+                    data: { 
+                        isSelected: true,
+                        updatedAt: new Date()
+                    }
+                })
+            ]);
+
+            return { message: 'ตั้งค่าที่อยู่หลักเรียบร้อยแล้ว' };
+        } catch (error) {
+            this.logger.error(
+                'Failed to set primary address',
+                error.message,
+                ':setPrimaryAddress'
+            );
+            throw new InternalServerErrorException('ไม่สามารถตั้งค่าที่อยู่หลักได้');
+        }
+    }
 }
